@@ -36,12 +36,9 @@
  * curl_off_t
  * ----------
  *
- * For any given platform/compiler curl_off_t must be typedef'ed to a 64-bit
+ * For any given platform/compiler curl_off_t MUST be typedef'ed to a 64-bit
  * wide signed integral data type. The width of this data type must remain
  * constant and independent of any possible large file support settings.
- *
- * As an exception to the above, curl_off_t shall be typedef'ed to a 32-bit
- * wide signed integral data type if there is no 64-bit type.
  *
  * As a general rule, curl_off_t shall not be mapped to off_t. This rule shall
  * only be violated if off_t is the only 64-bit data type available and the
@@ -332,13 +329,18 @@
    defined(__ppc__) || defined(__powerpc__) || defined(__arm__) ||      \
    defined(__sparc__) || defined(__mips__) || defined(__sh__) ||        \
    defined(__XTENSA__) ||                                               \
-   (defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 4)  ||               \
+   (defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 4) ||                \
    (defined(__LONG_MAX__) && __LONG_MAX__ == 2147483647L))
 #    define CURL_TYPEOF_CURL_OFF_T     long long
 #    define CURL_FORMAT_CURL_OFF_T     "lld"
 #    define CURL_FORMAT_CURL_OFF_TU    "llu"
 #    define CURL_SUFFIX_CURL_OFF_T     LL
 #    define CURL_SUFFIX_CURL_OFF_TU    ULL
+#    if (__GNUC__ >= 4) || \
+       ((__GNUC__ == 3) && defined(__GNUC_MINOR__) && (__GNUC_MINOR__ >= 4))
+#      define CURL_POPCOUNT64(x)       __builtin_popcountll(x)
+#      define CURL_CTZ64(x)            __builtin_ctzll(x)
+#    endif
 #  elif defined(__LP64__) || \
         defined(__x86_64__) || defined(__ppc64__) || defined(__sparc64__) || \
         defined(__e2k__) || \
@@ -349,6 +351,11 @@
 #    define CURL_FORMAT_CURL_OFF_TU    "lu"
 #    define CURL_SUFFIX_CURL_OFF_T     L
 #    define CURL_SUFFIX_CURL_OFF_TU    UL
+#    if (__GNUC__ >= 4) || \
+       ((__GNUC__ == 3) && defined(__GNUC_MINOR__) && (__GNUC_MINOR__ >= 4))
+#      define CURL_POPCOUNT64(x)       __builtin_popcountl(x)
+#      define CURL_CTZ64(x)            __builtin_ctzl(x)
+#    endif
 #  endif
 #  define CURL_TYPEOF_CURL_SOCKLEN_T socklen_t
 #  define CURL_PULL_SYS_TYPES_H      1
@@ -356,11 +363,11 @@
 
 #else
 /* generic "safe guess" on old 32-bit style */
-#  define CURL_TYPEOF_CURL_OFF_T     long
-#  define CURL_FORMAT_CURL_OFF_T     "ld"
-#  define CURL_FORMAT_CURL_OFF_TU    "lu"
-#  define CURL_SUFFIX_CURL_OFF_T     L
-#  define CURL_SUFFIX_CURL_OFF_TU    UL
+#  define CURL_TYPEOF_CURL_OFF_T     long long
+#  define CURL_FORMAT_CURL_OFF_T     "lld"
+#  define CURL_FORMAT_CURL_OFF_TU    "llu"
+#  define CURL_SUFFIX_CURL_OFF_T     LL
+#  define CURL_SUFFIX_CURL_OFF_TU    ULL
 #  define CURL_TYPEOF_CURL_SOCKLEN_T int
 #endif
 
@@ -396,54 +403,6 @@
 
 #ifdef CURL_TYPEOF_CURL_OFF_T
   typedef CURL_TYPEOF_CURL_OFF_T curl_off_t;
-#endif
-
-/*
- * CURL_ISOCPP and CURL_OFF_T_C definitions are done here in order to allow
- * these to be visible and exported by the external libcurl interface API,
- * while also making them visible to the library internals, simply including
- * curl_setup.h, without actually needing to include curl.h internally.
- * If some day this section would grow big enough, all this should be moved
- * to its own header file.
- */
-
-/*
- * Figure out if we can use the ## preprocessor operator, which is supported
- * by ISO/ANSI C and C++. Some compilers support it without setting __STDC__
- * or  __cplusplus so we need to carefully check for them too.
- */
-
-#if defined(__STDC__) || defined(_MSC_VER) || defined(__cplusplus) || \
-  defined(__HP_aCC) || defined(__BORLANDC__) || defined(__LCC__) || \
-  defined(__POCC__) || defined(__HIGHC__) || \
-  defined(__ILEC400__)
-  /* This compiler is believed to have an ISO compatible preprocessor */
-#define CURL_ISOCPP
-#else
-  /* This compiler is believed NOT to have an ISO compatible preprocessor */
-#undef CURL_ISOCPP
-#endif
-
-/*
- * Macros for minimum-width signed and unsigned curl_off_t integer constants.
- */
-
-#if defined(__BORLANDC__) && (__BORLANDC__ == 0x0551)
-#  define CURLINC_OFF_T_C_HLPR2(x) x
-#  define CURLINC_OFF_T_C_HLPR1(x) CURLINC_OFF_T_C_HLPR2(x)
-#  define CURL_OFF_T_C(Val)  CURLINC_OFF_T_C_HLPR1(Val) ## \
-                             CURLINC_OFF_T_C_HLPR1(CURL_SUFFIX_CURL_OFF_T)
-#  define CURL_OFF_TU_C(Val) CURLINC_OFF_T_C_HLPR1(Val) ## \
-                             CURLINC_OFF_T_C_HLPR1(CURL_SUFFIX_CURL_OFF_TU)
-#else
-#  ifdef CURL_ISOCPP
-#    define CURLINC_OFF_T_C_HLPR2(Val,Suffix) Val ## Suffix
-#  else
-#    define CURLINC_OFF_T_C_HLPR2(Val,Suffix) Val/**/Suffix
-#  endif
-#  define CURLINC_OFF_T_C_HLPR1(Val,Suffix) CURLINC_OFF_T_C_HLPR2(Val,Suffix)
-#  define CURL_OFF_T_C(Val)  CURLINC_OFF_T_C_HLPR1(Val,CURL_SUFFIX_CURL_OFF_T)
-#  define CURL_OFF_TU_C(Val) CURLINC_OFF_T_C_HLPR1(Val,CURL_SUFFIX_CURL_OFF_TU)
 #endif
 
 #endif /* CURLINC_SYSTEM_H */

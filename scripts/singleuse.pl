@@ -47,7 +47,11 @@ my %wl = (
     'Curl_creader_def_close' => 'internal api',
     'Curl_creader_def_read' => 'internal api',
     'Curl_creader_def_total_length' => 'internal api',
+    'Curl_meta_reset' => 'internal api',
     'Curl_trc_dns' => 'internal api',
+    'curlx_base64_decode' => 'internal api',
+    'curlx_base64_encode' => 'internal api',
+    'curlx_base64url_encode' => 'internal api',
 );
 
 my %api = (
@@ -175,7 +179,7 @@ open(N, "nm $file|") ||
 my %exist;
 my %uses;
 my $file;
-while (<N>) {
+while(<N>) {
     my $l = $_;
     chomp $l;
 

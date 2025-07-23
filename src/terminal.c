@@ -28,7 +28,6 @@
 #endif
 
 #include "terminal.h"
-
 #include "memdebug.h" /* keep this as LAST include */
 
 #ifdef HAVE_TERMIOS_H
@@ -47,10 +46,9 @@ unsigned int get_terminal_columns(void)
   unsigned int width = 0;
   char *colp = curl_getenv("COLUMNS");
   if(colp) {
-    char *endptr;
-    long num = strtol(colp, &endptr, 10);
-    if((endptr != colp) && (endptr == colp + strlen(colp)) && (num > 20) &&
-       (num < 10000))
+    curl_off_t num;
+    const char *p = colp;
+    if(!curlx_str_number(&p, &num, 10000) && (num > 20))
       width = (unsigned int)num;
     curl_free(colp);
   }
